@@ -42,7 +42,7 @@ async def start(_, message):
     await users.update_one({"user_id": user_id}, {"$set": {"user_id": user_id}}, upsert=True)
 
     buttons = [
-        [InlineKeyboardButton("🎈 Add Your Group", url=f"http://t.me/{BOT_USERNAME}?startgroup=none&admin=delete_messages")],
+        [InlineKeyboardButton("➕ Add Your Group ➕", url=f"http://t.me/{BOT_USERNAME}?startgroup=none&admin=delete_messages")],
         [InlineKeyboardButton("❓ Help", callback_data="help"), InlineKeyboardButton("ℹ️ About", callback_data="about")]
     ]
     await message.reply_text(
@@ -66,13 +66,13 @@ async def callback_handler(_, query: CallbackQuery):
         await query.message.edit_text(
             "**ℹ️ About**\n\n"
             "Auto Deleter Bot by @kissubots.\nMaintains group cleanliness by deleting messages after a time.\n",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data="back")]])
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data="back"),InlineKeyboardButton("Repo", url="https://github.com/pyKinsu/Tele-Auto-Delete-Bot/tree/main")]])
         )
     elif query.data == "back":
         await query.message.edit_text(
             "**👋 Welcome to Auto Deleter Bot!**\n\nI can auto-delete group messages after a set time.\nUse me in your groups to keep them clean.",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🎈 Add Your Group", url=f"http://t.me/{BOT_USERNAME}?startgroup=none&admin=delete_messages")],
+                [InlineKeyboardButton("➕ Add Your Group ➕", url=f"http://t.me/{BOT_USERNAME}?startgroup=none&admin=delete_messages")],
                 [InlineKeyboardButton("❓ Help", callback_data="help"), InlineKeyboardButton("ℹ️ About", callback_data="about")]
             ])
         )
@@ -81,19 +81,54 @@ async def callback_handler(_, query: CallbackQuery):
 @bot.on_message(filters.command("set_time"))
 async def set_delete_time(_, message):
     if message.chat.type == enums.ChatType.PRIVATE:
-        await message.reply("**Use this command in a group.**")
-        return
-
-    args = message.text.split()
-    if len(args) != 2 or not args[1].isdigit():
-        return await message.reply_text("**❌ Invalid usage. Example:** `/set_time 10`", parse_mode=enums.ParseMode.MARKDOWN)
+        return await message.reply("❌ This command works only in groups.")
 
     user_id = message.from_user.id
+    is_admin = False
     async for m in bot.get_chat_members(message.chat.id, filter=enums.ChatMembersFilter.ADMINISTRATORS):
         if m.user.id == user_id:
-            await groups.update_one({"group_id": message.chat.id}, {"$set": {"delete_time": args[1]}}, upsert=True)
-            return await message.reply(f"✅ **Delete time set to {args[1]} seconds.**")
-    await message.reply("❌ Only admins can set delete time.")
+            is_admin = True
+            break
+
+    if not is_admin:
+        try:
+            await message.delete()
+        except: pass
+        return
+
+    if len(message.command) < 2:
+        buttons = [[
+            InlineKeyboardButton("2 min", callback_data="time_120"),
+            InlineKeyboardButton("5 min", callback_data="time_300"),
+            InlineKeyboardButton("15 min", callback_data="time_900")
+        ], [
+            InlineKeyboardButton("Custom", callback_data="custom")
+        ]]
+        msg = await message.reply("⏱️ Choose delete time:", reply_markup=InlineKeyboardMarkup(buttons))
+        await asyncio.sleep(10)
+        try:
+            await msg.delete()
+            await message.delete()
+        except: pass
+        return
+
+    delete_time = message.text.split()[1]
+    if not delete_time.isdigit():
+        reply = await message.reply("❌ Time must be a number in seconds.")
+        await asyncio.sleep(5)
+        try:
+            await reply.delete()
+            await message.delete()
+        except: pass
+        return
+
+    await groups.update_one({"group_id": message.chat.id}, {"$set": {"delete_time": int(delete_time)}}, upsert=True)
+    reply = await message.reply(f"✅ Auto-delete time set to {delete_time} seconds.")
+    await asyncio.sleep(5)
+    try:
+        await reply.delete()
+        await message.delete()
+    except: pass
 
 
 @bot.on_message(filters.command("status") & filters.group)
@@ -171,6 +206,25 @@ async def auto_delete(_, message):
         print(f"Error deleting message: {e}")
 
 
+@bot.on_message(filters.command("g_broadcast") & filters.private)
+async def broadcast(_, message):
+    if message.from_user.id != OWNER_ID:
+        return await message.reply("🚫 You are not allowed to broadcast.")
+
+    if len(message.command) < 2:
+        return await message.reply("📢 Usage: /broadcast Your message here")
+
+    text = message.text.split(None, 1)[1]
+    success = 0
+    fail = 0
+    async for group in groups.find({}):
+        try:
+            await bot.send_message(group["group_id"], text)
+            success += 1
+        except:
+            fail += 1
+    await message.reply(f"✅ Broadcast completed.\nSent: {success}, Failed: {fail}")
+    
 # Flask keep-alive
 app = Flask(__name__)
 
