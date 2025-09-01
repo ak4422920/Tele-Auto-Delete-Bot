@@ -65,8 +65,8 @@ async def callback_handler(_, query: CallbackQuery):
     elif query.data == "about":
         await query.message.edit_text(
             "**ℹ️ About**\n\n"
-            "Auto Deleter Bot by @kissubots.\nMaintains group cleanliness by deleting messages after a time.\n",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data="back"),InlineKeyboardButton("Repo", url="https://github.com/pyKinsu/Tele-Auto-Delete-Bot/tree/main")]])
+            "Auto Deleter Bot by @ZoroVerseX.\nMaintains group cleanliness by deleting messages after a time.\n",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data="back"),InlineKeyboardButton("Kissu's Repo", url="https://t.me/AkMoviesHubBackup")]])
         )
     elif query.data == "back":
         await query.message.edit_text(
